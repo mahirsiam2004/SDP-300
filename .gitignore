@@ -70,3 +70,6 @@ yarn-error.log*
 # Testing
 coverage/
 .nyc_output/
+
+# Docs
+PROJECT_GUIDE_BANGLA.md
