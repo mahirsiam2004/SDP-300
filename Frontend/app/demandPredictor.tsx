@@ -373,7 +373,7 @@ export default function WeeklyPredictionScreen() {
     if (!user?.id) return;
     try {
       const data = await productService.getBrandProducts(user.id);
-      setProducts(data);
+      setProducts(data.products);
     } catch (e: any) {
       setMessageType('error');
       setFormMessage(e?.message || 'Failed to load products.');

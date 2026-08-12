@@ -8,7 +8,6 @@ export const API_BASE_URL = PROXY_BASE_URL;
 
 const apiFetch = async (input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> => {
   const headers = new Headers(init.headers);
-  headers.set('ngrok-skip-browser-warning', '69420');
   try {
     const response = await globalThis.fetch(input, { ...init, headers });
     return response;
@@ -154,8 +153,13 @@ export const deleteProduct = async (accessToken: string, productId: number): Pro
   }
 };
 
-// Get brand's products
-export const getBrandProducts = async (brandId: number, accessToken?: string): Promise<Product[]> => {
+// Get brand's products (public) — returns { brand, products }
+export interface BrandProductsResponse {
+  brand: Record<string, unknown>;
+  products: Product[];
+}
+
+export const getBrandProducts = async (brandId: number, accessToken?: string): Promise<BrandProductsResponse> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
