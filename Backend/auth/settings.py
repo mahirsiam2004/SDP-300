@@ -75,9 +75,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -86,15 +86,20 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# CORS settings - restrict in production
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOW_ALL_ORIGINS = False
-    CORS_ALLOWED_ORIGINS = [
-        origin for origin in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if origin
-    ]
+# CORS settings - allow localhost:8081 (Expo web) with credentials for Authorization header
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8081',
+    'http://127.0.0.1:8081',
+]
 CORS_ALLOW_CREDENTIALS = True
+CORS_PREFLIGHT_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'content-type',
+    'authorization',
+    'x-csrftoken',
+    'x-request-id',
+]
 
 # Custom User Model
 AUTH_USER_MODEL = 'users.CustomUser'
@@ -262,6 +267,9 @@ EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'true').lower() == 'true'
+
+# Base public URL of THIS backend (used to build callback/prediction URLs).
+SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')
 
 # SSLCommerz payment settings
 SSL_STORE_ID = os.environ.get('SSL_STORE_ID', '')
