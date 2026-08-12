@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Ionicons } from '@expo/vector-icons';
 import { ShopFlareColors } from '@/constants/theme';
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Fragment } from 'react';
 import {
   getOrders,
   getBrandOrders,
@@ -129,16 +129,16 @@ export default function OrdersScreen() {
   const filteredOrders =
     selectedFilter === 'all' ? orders : orders.filter(o => o.status === selectedFilter);
 
-  const handleCancel = (orderId: number) => {
+  const handleCancel = (item: Order) => {
     Alert.alert('Cancel Order', 'Are you sure you want to cancel this order?', [
       { text: 'No' },
       {
         text: 'Yes, cancel',
         style: 'destructive',
         onPress: async () => {
-          if (!accessToken) return;
           try {
-            await cancelOrder(accessToken, orderId);
+            const updated = await cancelOrder(accessToken, item.id, item.guest_access_token);
+            Alert.alert('Cancelled', `Order #${item.id} has been cancelled.`);
             fetchOrders();
           } catch (err: any) {
             Alert.alert('Error', err.message || 'Failed to cancel order');
@@ -156,7 +156,8 @@ export default function OrdersScreen() {
         text: 'Yes',
         onPress: async () => {
           try {
-            await updateOrderStatus(accessToken, orderId, newStatus);
+            const updated = await updateOrderStatus(accessToken, orderId, newStatus);
+            Alert.alert('Updated', `Order #${orderId} is now "${updated.status}".`);
             fetchOrders();
           } catch (err: any) {
             Alert.alert('Error', err.message || 'Failed to update status');
@@ -178,7 +179,6 @@ export default function OrdersScreen() {
 
   const renderOrder = ({ item }: { item: Order }) => {
     const itemSummary = item.items.map(i => `${i.product_name} ×${i.quantity}`).join(', ');
-    const nextStatus = isBrand ? getNextStatus(item.status) : null;
     const canCancel = !isBrand && ['pending', 'confirmed'].includes(item.status);
 
     return (
@@ -209,6 +209,75 @@ export default function OrdersScreen() {
               <ThemedText style={styles.orderRowText}>{item.username}</ThemedText>
             </View>
           )}
+
+          {/* Brand-facing visual status stepper (Pending → … → Delivered) */}
+          {isBrand && (() => {
+            const STAGES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+            const currentIdx = STAGES.indexOf(item.status);
+            const idx = currentIdx === -1 ? 0 : currentIdx;
+            const next = getNextStatus(item.status);
+            return (
+              <View style={{ marginTop: 8 }}>
+                <ThemedText style={styles.currentStageText}>
+                  Current: {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                </ThemedText>
+                <View style={styles.stepper}>
+                  {STAGES.map((stage, i) => {
+                    const done = i <= idx;
+                    const dotColor = done ? ShopFlareColors.accent : ShopFlareColors.statusCancelled;
+                    return (
+                      <Fragment key={stage}>
+                        <View style={styles.stepNode}>
+                          <View
+                            style={[
+                              styles.stepCircle,
+                              {
+                                backgroundColor: done ? ShopFlareColors.accent : ShopFlareColors.background,
+                                borderColor: dotColor,
+                              },
+                            ]}
+                          />
+                          <ThemedText
+                            style={[
+                              styles.stepLabel,
+                              { color: done ? ShopFlareColors.text : ShopFlareColors.textLight },
+                            ]}
+                          >
+                            {stage.charAt(0).toUpperCase() + stage.slice(1)}
+                          </ThemedText>
+                        </View>
+                        {i < STAGES.length - 1 && (
+                          <View
+                            style={[
+                              styles.stepLine,
+                              { backgroundColor: i < idx ? ShopFlareColors.accent : ShopFlareColors.statusCancelledLight },
+                            ]}
+                          />
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </View>
+                {next ? (
+                  <TouchableOpacity
+                    style={styles.advanceBtn}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      handleStatusUpdate(item.id, next);
+                    }}
+                  >
+                    <ThemedText style={styles.advanceBtnText}>
+                      Advance to {next.charAt(0).toUpperCase() + next.slice(1)}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ) : (
+                  <ThemedText style={[styles.currentStageText, { textAlign: 'center' }]}>
+                    Order fully delivered ✓
+                  </ThemedText>
+                )}
+              </View>
+            );
+          })()}
           <View style={styles.orderRow}>
             <Ionicons name="cube-outline" size={16} color={ShopFlareColors.textSecondary} />
             <ThemedText style={styles.orderRowText} numberOfLines={2}>{itemSummary}</ThemedText>
@@ -227,19 +296,9 @@ export default function OrdersScreen() {
             {canCancel && (
               <TouchableOpacity
                 style={styles.cancelBtn}
-                onPress={() => handleCancel(item.id)}
+                onPress={(e) => { e.stopPropagation?.(); handleCancel(item); }}
               >
                 <ThemedText style={styles.cancelBtnText}>Cancel</ThemedText>
-              </TouchableOpacity>
-            )}
-            {nextStatus && (
-              <TouchableOpacity
-                style={styles.nextStatusBtn}
-                onPress={() => handleStatusUpdate(item.id, nextStatus)}
-              >
-                <ThemedText style={styles.nextStatusBtnText}>
-                  Mark {nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}
-                </ThemedText>
               </TouchableOpacity>
             )}
             <Ionicons name="chevron-forward" size={20} color={ShopFlareColors.textLight} />
@@ -604,15 +663,51 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: ShopFlareColors.statusCancelled,
   },
-  nextStatusBtn: {
-    backgroundColor: ShopFlareColors.accent,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  // ── Brand order status stepper ──
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 12,
+    paddingHorizontal: 4,
   },
-  nextStatusBtnText: {
-    fontSize: 12,
+  stepNode: {
+    alignItems: 'center',
+    width: 56,
+  },
+  stepCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    marginBottom: 4,
+  },
+  stepLine: {
+    flex: 1,
+    height: 2,
+    marginHorizontal: 2,
+    alignSelf: 'center',
+  },
+  stepLabel: {
+    fontSize: 10,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  advanceBtn: {
+    backgroundColor: ShopFlareColors.accent,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  advanceBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
     color: ShopFlareColors.secondary,
+  },
+  currentStageText: {
+    fontSize: 12,
+    color: ShopFlareColors.textSecondary,
+    marginBottom: 2,
   },
 });

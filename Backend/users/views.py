@@ -1,4 +1,5 @@
 from rest_framework import status, generics
+import os
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -2732,14 +2733,23 @@ def guest_order_detail_view(request, order_id):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def order_cancel_view(request, order_id):
-    """Cancel a pending order (customer)"""
+    """Cancel a pending/confirmed order (customer or guest)."""
     from django.db import transaction
 
-    try:
-        order = Order.objects.get(id=order_id, user=request.user)
-    except Order.DoesNotExist:
+    user = getattr(request, 'user', None)
+    is_auth = bool(user and getattr(user, 'is_authenticated', False))
+
+    # Resolve the order: signed-in user's order, or a guest order via token.
+    order = None
+    if is_auth:
+        order = Order.objects.filter(id=order_id, user=user).first()
+    if order is None:
+        guest_token = request.data.get('guest_access_token') or request.GET.get('guest_access_token')
+        if guest_token:
+            order = Order.objects.filter(id=order_id, guest_checkout=True, guest_access_token=guest_token).first()
+    if order is None:
         return Response({'detail': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
 
     if order.status not in ('pending', 'confirmed'):
@@ -2758,21 +2768,20 @@ def order_cancel_view(request, order_id):
         order.status = 'cancelled'
         order.save(update_fields=['status', 'updated_at'])
 
-    create_user_notification(
-        request.user,
-        title=f'Order #{getattr(order, "id", "")} cancelled',
-        #title=f'Order #{order.id} cancelled',
-        body='Your order has been cancelled successfully.',
-        notification_type='order',
-        related_order=order,
-    )  # type: ignore[attr-defined]
+    if order.user:
+        create_user_notification(
+            order.user,
+            title=f'Order #{getattr(order, "id", "")} cancelled',
+            body='Your order has been cancelled successfully.',
+            notification_type='order',
+            related_order=order,
+        )  # type: ignore[attr-defined]
 
     brand_ids = set(order.items.exclude(brand__isnull=True).values_list('brand_id', flat=True))  # type: ignore[attr-defined]
     for brand in Brand.objects.filter(id__in=brand_ids):
         create_brand_notification(
             brand,
             title=f'Order #{getattr(order, "id", "")} cancelled',
-            #title=f'Order #{order.id} cancelled',
             body='A customer cancelled this order.',
             notification_type='order',
             related_order=order,
@@ -2868,7 +2877,68 @@ from rest_framework.decorators import permission_classes
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_ai_url(request):
-    ai_url = "http://10.135.97.202:8080/api/weekly-prediction/"
+    # Configurable via env; defaults to a local fallback predictor served by this
+    # backend so the demand-predictor screen works without an external ML server.
+    ai_url = os.environ.get('AI_PREDICTION_URL', f"{settings.SITE_URL}/api/auth/predict/demand/")
     return Response({"ai_url": ai_url})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def predict_demand_view(request):
+    """Local fallback demand predictor.
+
+    Computes a simple, explainable weekly forecast from real order history per
+    product when no external ML server is configured. Returns the same shape the
+    frontend expects: { status, model, predictions, message }.
+    """
+    from django.db.models import Sum
+    from datetime import timedelta
+
+    product_ids = request.data.get('product_ids') or []
+    if not isinstance(product_ids, list):
+        product_ids = [product_ids]
+
+    try:
+        days = int(request.data.get('days', 7))
+    except (TypeError, ValueError):
+        days = 7
+
+    products = Product.objects.filter(id__in=product_ids, is_active=True)
+    predictions = []
+    for product in products:
+        since = timezone.now() - timedelta(days=days * 4)  # look back ~4 weeks
+        sold = (
+            OrderItem.objects.filter(
+                product=product,
+                order__created_at__gte=since,
+                order__payment_status='paid',
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+        )
+        weekly_avg = sold / 4.0
+        # Light smoothing so brand-new products still get a sensible forecast.
+        predicted = round(weekly_avg * 1.1 + 1.0, 1)
+        predictions.append({
+            'product_id': product.id,
+            'week': f'next_{days}_days',
+            'predicted_units_sold': max(predicted, 1.0),
+            'recent_units_sold': sold,
+        })
+
+    model_info = {
+        'trained_at': timezone.now().isoformat(),
+        'csv_path': 'local-order-history',
+        'feature_names': ['recent_units_sold', 'weekly_avg', 'smoothing'],
+        'learning_rate': 0.0,
+        'epochs': 0,
+        'use_rolling_feature': True,
+        'final_loss': 0.0,
+    }
+    return Response({
+        'status': 'ok',
+        'model': model_info,
+        'predictions': predictions,
+        'message': 'Local forecast computed from order history.',
+    })
 
   

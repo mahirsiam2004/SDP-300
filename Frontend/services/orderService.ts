@@ -218,10 +218,19 @@ export const getOrder = async (token: string, orderId: number): Promise<Order> =
 };
 
 /** Cancel a pending/confirmed order */
-export const cancelOrder = async (token: string, orderId: number): Promise<Order> => {
+export const cancelOrder = async (
+  token: string | null,
+  orderId: number,
+  guestToken?: string | null
+): Promise<Order> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const body: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (guestToken) body['guest_access_token'] = guestToken;
   const res = await apiFetch(`${API_BASE_URL}/auth/orders/${orderId}/cancel/`, {
     method: 'POST',
-    headers: authHeaders(token),
+    headers,
+    body: Object.keys(body).length ? JSON.stringify(body) : undefined,
   });
   return handleResponse<Order>(res);
 };
