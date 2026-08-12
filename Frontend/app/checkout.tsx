@@ -181,7 +181,12 @@ export default function CheckoutScreen() {
 
         setMessageType('info');
         setFormMessage(`Continue payment in SSLCommerz. Your order will appear after successful payment.`);
-        await Linking.openURL(paymentInit.payment_url);
+        // On web, Linking.openURL can be blocked/silent — navigate the tab directly.
+        if (typeof window !== 'undefined' && window.location) {
+          window.location.href = paymentInit.payment_url;
+        } else {
+          await Linking.openURL(paymentInit.payment_url);
+        }
         return;
       } else {
         const guestData: GuestCheckoutData = {
@@ -227,7 +232,11 @@ export default function CheckoutScreen() {
           order = paymentInit.order;
           setMessageType('info');
           setFormMessage(`Continue payment in SSLCommerz. Your order will appear after successful payment.`);
-          await Linking.openURL(paymentInit.payment_url);
+          if (typeof window !== 'undefined' && window.location) {
+            window.location.href = paymentInit.payment_url;
+          } else {
+            await Linking.openURL(paymentInit.payment_url);
+          }
           return;
         }
       }
