@@ -102,7 +102,6 @@ function authHeaders(token: string): Record<string, string> {
 
 function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set('ngrok-skip-browser-warning', '69420');
   return fetch(input, { ...init, headers });
 }
 
