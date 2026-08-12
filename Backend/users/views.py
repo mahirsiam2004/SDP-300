@@ -353,12 +353,14 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-
-        _issue_verification_code(user, 'user')
+        # No email/SMS verification step: accounts are active immediately.
+        if not user.is_email_verified:
+            user.is_email_verified = True
+            user.save(update_fields=['is_email_verified'])
 
         return Response({
-            'message': 'Registration successful. Please verify your email before logging in.',
-            'requires_verification': True,
+            'message': 'Registration successful.',
+            'requires_verification': False,
             'email': user.email,
             'user_type': 'user',
         }, status=status.HTTP_201_CREATED)
@@ -374,12 +376,14 @@ class BrandRegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         brand = serializer.save()
-
-        _issue_verification_code(brand, 'brand')
+        # No email/SMS verification step: accounts are active immediately.
+        if not brand.is_email_verified:
+            brand.is_email_verified = True
+            brand.save(update_fields=['is_email_verified'])
 
         return Response({
-            'message': 'Brand registration successful. Please verify your email before logging in.',
-            'requires_verification': True,
+            'message': 'Brand registration successful.',
+            'requires_verification': False,
             'email': brand.email,
             'user_type': 'brand',
         }, status=status.HTTP_201_CREATED)
@@ -606,17 +610,7 @@ def login_view(request):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        if not _is_user_email_verified(user):
-            return Response(
-                {
-                    'detail': 'Email not verified. Please verify your email before logging in.',
-                    'code': 'email_not_verified',
-                    'email': user.email,
-                    'user_type': 'user',
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        
+        # Email verification is not required to log in.
         tokens = get_tokens_for_user(user)
         user_data = UserSerializer(user).data
         
@@ -637,17 +631,7 @@ def login_view(request):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
-            if not brand.is_brand_verified:
-                return Response(
-                    {
-                        'detail': 'Email not verified. Please verify your email before logging in.',
-                        'code': 'email_not_verified',
-                        'email': brand.email,
-                        'user_type': 'brand',
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-            
+            # Brand verification is not required to log in.
             tokens = get_tokens_for_brand(brand)
             brand_data = BrandSerializer(brand).data
             
@@ -670,17 +654,7 @@ def login_view(request):
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
-            if not brand.is_brand_verified:
-                return Response(
-                    {
-                        'detail': 'Email not verified. Please verify your email before logging in.',
-                        'code': 'email_not_verified',
-                        'email': brand.email,
-                        'user_type': 'brand',
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-            
+            # Brand verification is not required to log in.
             tokens = get_tokens_for_brand(brand)
             brand_data = BrandSerializer(brand).data
             
