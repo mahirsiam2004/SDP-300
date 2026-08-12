@@ -6,10 +6,16 @@
 const PROXY_BASE_URL = 'http://localhost:8000/api';
 export const API_BASE_URL = PROXY_BASE_URL;
 
-const apiFetch = (input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> => {
+const apiFetch = async (input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> => {
   const headers = new Headers(init.headers);
   headers.set('ngrok-skip-browser-warning', '69420');
-  return globalThis.fetch(input, { ...init, headers });
+  try {
+    const response = await globalThis.fetch(input, { ...init, headers });
+    return response;
+  } catch (error) {
+    console.error('[apiFetch] error', input, error);
+    throw error;
+  }
 };
 
 export interface ProductImage {
@@ -138,7 +144,6 @@ export const deleteProduct = async (accessToken: string, productId: number): Pro
   const response = await apiFetch(`${API_BASE_URL}/auth/products/${productId}/delete/`, {
     method: 'DELETE',
     headers: {
-      'Content-Type': 'application/json',
       'Authorization': `Bearer ${accessToken}`,
     },
   });
@@ -149,13 +154,19 @@ export const deleteProduct = async (accessToken: string, productId: number): Pro
   }
 };
 
-// Get products from a specific brand
-export const getBrandProducts = async (brandId: number): Promise<{ brand: any; products: Product[] }> => {
+// Get brand's products
+export const getBrandProducts = async (brandId: number, accessToken?: string): Promise<Product[]> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
   const response = await apiFetch(`${API_BASE_URL}/auth/brands/${brandId}/products/`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -165,15 +176,7 @@ export const getBrandProducts = async (brandId: number): Promise<{ brand: any; p
   return await response.json();
 };
 
-
-// ==================== WISHLIST API ====================
-
-export interface WishlistItem {
-  id: number;
-  product: Product;
-  created_at: string;
-}
-
+// Wishlist operations
 export const getWishlist = async (accessToken: string): Promise<WishlistItem[]> => {
   const response = await apiFetch(`${API_BASE_URL}/auth/wishlist/`, {
     method: 'GET',
@@ -190,7 +193,7 @@ export const getWishlist = async (accessToken: string): Promise<WishlistItem[]> 
   return await response.json();
 };
 
-export const addToWishlist = async (accessToken: string, productId: number): Promise<WishlistItem> => {
+export const addToWishlist = async (accessToken: string, productId: number): Promise<void> => {
   const response = await apiFetch(`${API_BASE_URL}/auth/wishlist/add/`, {
     method: 'POST',
     headers: {
@@ -204,15 +207,12 @@ export const addToWishlist = async (accessToken: string, productId: number): Pro
     const error = await response.json();
     throw new Error(error.detail || 'Failed to add to wishlist');
   }
-
-  return await response.json();
 };
 
 export const removeFromWishlist = async (accessToken: string, productId: number): Promise<void> => {
   const response = await apiFetch(`${API_BASE_URL}/auth/wishlist/remove/${productId}/`, {
     method: 'DELETE',
     headers: {
-      'Content-Type': 'application/json',
       'Authorization': `Bearer ${accessToken}`,
     },
   });
@@ -223,20 +223,8 @@ export const removeFromWishlist = async (accessToken: string, productId: number)
   }
 };
 
-
-// ==================== CART API ====================
-
-export interface CartItemResponse {
-  id: number;
-  product: Product;
-  quantity: number;
-  selected_size: string;
-  selected_color: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export const getCart = async (accessToken: string): Promise<CartItemResponse[]> => {
+// Cart operations
+export const getCart = async (accessToken: string): Promise<CartItem[]> => {
   const response = await apiFetch(`${API_BASE_URL}/auth/cart/`, {
     method: 'GET',
     headers: {
@@ -255,35 +243,28 @@ export const getCart = async (accessToken: string): Promise<CartItemResponse[]> 
 export const addToCartAPI = async (
   accessToken: string, 
   productId: number, 
-  quantity: number,
-  selectedSize: string,
-  selectedColor: string
-): Promise<CartItemResponse> => {
+  quantity: number = 1, 
+  size: string = 'M', 
+  color: string = 'Black'
+): Promise<void> => {
   const response = await apiFetch(`${API_BASE_URL}/auth/cart/add/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ 
-      product_id: productId, 
-      quantity,
-      selected_size: selectedSize,
-      selected_color: selectedColor 
-    }),
+    body: JSON.stringify({ product_id: productId, quantity, selected_size: size, selected_color: color }),
   });
 
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.detail || 'Failed to add to cart');
   }
-
-  return await response.json();
 };
 
-export const updateCartItem = async (accessToken: string, itemId: number, quantity: number): Promise<CartItemResponse> => {
+export const updateCartItem = async (accessToken: string, itemId: number, quantity: number): Promise<void> => {
   const response = await apiFetch(`${API_BASE_URL}/auth/cart/update/${itemId}/`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${accessToken}`,
@@ -295,15 +276,12 @@ export const updateCartItem = async (accessToken: string, itemId: number, quanti
     const error = await response.json();
     throw new Error(error.detail || 'Failed to update cart');
   }
-
-  return await response.json();
 };
 
 export const removeFromCartAPI = async (accessToken: string, itemId: number): Promise<void> => {
   const response = await apiFetch(`${API_BASE_URL}/auth/cart/remove/${itemId}/`, {
     method: 'DELETE',
     headers: {
-      'Content-Type': 'application/json',
       'Authorization': `Bearer ${accessToken}`,
     },
   });
@@ -316,7 +294,7 @@ export const removeFromCartAPI = async (accessToken: string, itemId: number): Pr
 
 export const clearCartAPI = async (accessToken: string): Promise<void> => {
   const response = await apiFetch(`${API_BASE_URL}/auth/cart/clear/`, {
-    method: 'DELETE',
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${accessToken}`,
@@ -329,37 +307,8 @@ export const clearCartAPI = async (accessToken: string): Promise<void> => {
   }
 };
 
-// ============ REVIEW API FUNCTIONS ============
-
-export interface Review {
-  id: number;
-  user_id: number;
-  username: string;
-  product: number;
-  rating: number;
-  title: string | null;
-  comment: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface ReviewsResponse {
-  reviews: Review[];
-  average_rating: number;
-  total_reviews: number;
-  total_ratings: number;
-  user_rating: number | null;
-}
-
-export interface ReviewCreateData {
-  product_id: number;
-  rating: number;
-  title?: string;
-  comment?: string;
-}
-
-// Get reviews for a product (pass token to get user's rating)
-export const getProductReviews = async (productId: number, accessToken?: string | null): Promise<ReviewsResponse> => {
+// Review operations
+export const getProductReviews = async (productId: number, accessToken?: string): Promise<ReviewsResponse> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -367,7 +316,7 @@ export const getProductReviews = async (productId: number, accessToken?: string 
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
-  
+
   const response = await apiFetch(`${API_BASE_URL}/auth/products/${productId}/reviews/`, {
     method: 'GET',
     headers,
@@ -377,11 +326,21 @@ export const getProductReviews = async (productId: number, accessToken?: string 
     throw new Error('Failed to fetch reviews');
   }
 
-  return await response.json();
+  return await response.json() as ReviewsResponse;
 };
 
-// Create or update review (requires auth)
-export const createReview = async (accessToken: string, data: ReviewCreateData): Promise<Review> => {
+export interface ReviewsResponse {
+  reviews: Review[];
+  average_rating: number;
+  total_reviews: number;
+  total_ratings: number;
+  user_rating: number | null;
+}
+
+export const createReview = async (
+  accessToken: string,
+  data: { product_id: number; rating: number; comment?: string }
+): Promise<Review> => {
   const response = await apiFetch(`${API_BASE_URL}/auth/reviews/create/`, {
     method: 'POST',
     headers: {
@@ -393,18 +352,16 @@ export const createReview = async (accessToken: string, data: ReviewCreateData):
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.detail || 'Failed to submit review');
+    throw new Error(error.detail || 'Failed to create review');
   }
 
   return await response.json();
 };
 
-// Delete user's own review
 export const deleteReview = async (accessToken: string, reviewId: number): Promise<void> => {
   const response = await apiFetch(`${API_BASE_URL}/auth/reviews/${reviewId}/delete/`, {
     method: 'DELETE',
     headers: {
-      'Content-Type': 'application/json',
       'Authorization': `Bearer ${accessToken}`,
     },
   });
@@ -415,8 +372,7 @@ export const deleteReview = async (accessToken: string, reviewId: number): Promi
   }
 };
 
-// Get user's reviews
-export const getUserReviews = async (accessToken: string): Promise<Review[]> => {
+export const getMyReviews = async (accessToken: string): Promise<Review[]> => {
   const response = await apiFetch(`${API_BASE_URL}/auth/reviews/my/`, {
     method: 'GET',
     headers: {
@@ -426,9 +382,36 @@ export const getUserReviews = async (accessToken: string): Promise<Review[]> => 
   });
 
   if (!response.ok) {
-    throw new Error('Failed to fetch user reviews');
+    throw new Error('Failed to fetch my reviews');
   }
 
   return await response.json();
 };
 
+// Helper interfaces
+export interface WishlistItem {
+  id: number;
+  product: Product;
+  created_at: string;
+}
+
+export interface CartItem {
+  id: number;
+  product: Product;
+  quantity: number;
+  selected_size: string;
+  selected_color: string;
+  created_at: string;
+}
+
+export interface Review {
+  id: number;
+  product: number;
+  user_id: number;
+  username: string;
+  rating: number;
+  title?: string;
+  comment?: string;
+  created_at: string;
+  updated_at: string;
+}

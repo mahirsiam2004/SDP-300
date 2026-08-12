@@ -8,11 +8,11 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  first_name?: string;
+  last_name?: string;
   phone_number?: string;
   bio?: string;
-  is_email_verified: boolean;
+  is_email_verified?: boolean;
   user_type: UserType;
   // Brand-specific fields
   brand_name?: string;

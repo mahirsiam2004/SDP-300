@@ -63,7 +63,7 @@ export default function Toast({
     });
   };
 
-  if (!visible && opacity._value === 0) return null;
+  if (!visible) return null;
 
   const getBackgroundColor = () => {
     switch (type) {

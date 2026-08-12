@@ -32,6 +32,7 @@ const EMPTY_FORM: AddressInput = {
   label: 'home',
   full_name: '',
   phone: '',
+  address_line1: '',
   city: '',
   postal_code: '',
   is_default: false,

@@ -68,7 +68,7 @@ export default function ProductDetailScreen() {
     try {
       const productId = Number(id);
       if (productId) {
-        const response = await getProductReviews(productId, accessToken);
+        const response = await getProductReviews(productId, accessToken ?? undefined);
         setReviews(response.reviews);
         setAverageRating(response.average_rating);
         setTotalReviews(response.total_reviews);
@@ -94,7 +94,7 @@ export default function ProductDetailScreen() {
     
     try {
       // Only send rating - don't send empty comment to preserve existing comment
-      await createReview(accessToken, {
+      await createReview(accessToken!, {
         product_id: Number(id),
         rating: rating,
       });
@@ -118,7 +118,7 @@ export default function ProductDetailScreen() {
     
     setIsSubmittingReview(true);
     try {
-      await createReview(accessToken, {
+      await createReview(accessToken!, {
         product_id: Number(id),
         rating: reviewRating,
         comment: reviewComment,

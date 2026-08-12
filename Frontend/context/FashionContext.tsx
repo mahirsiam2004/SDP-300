@@ -221,7 +221,6 @@ export const FashionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setProducts(converted);
     } catch (error) {
       console.error('Failed to fetch products:', error);
-      // Set some fallback products if backend fails
       setProducts([]);
     } finally {
       setIsLoadingProducts(false);
@@ -453,4 +452,4 @@ export const useFashion = () => {
 };
 
 export { FashionContext };
-export type { CartItem, Order, Message, UserProfile, Address, PaymentMethod, Product, WishlistItem };
+export type { CartItem, Order, Message, UserProfile, Address, PaymentMethod, WishlistItem };

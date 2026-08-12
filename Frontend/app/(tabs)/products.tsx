@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, TouchableOpacity, Alert, ScrollView, TextInput, Modal, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Alert, ScrollView, TextInput, Modal, FlatList, ActivityIndicator, RefreshControl, Platform, ToastAndroid } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
@@ -11,6 +11,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { ShopFlareColors } from '@/constants/theme';
 import { FASHION_CATEGORIES, FASHION_SUBCATEGORIES } from '@/constants/fashionData';
 import { formatTk } from '@/utils/currency';
+
+const showFeedback = (message: string, isError = false) => {
+  if (Platform.OS === 'android') {
+    ToastAndroid.show(message, ToastAndroid.LONG);
+  }
+  Alert.alert(isError ? 'Error' : 'Success', message);
+};
 
 export default function ProductsScreen() {
   const { user, accessToken } = useAuth();
@@ -55,6 +62,8 @@ export default function ProductsScreen() {
       setProducts(data);
     } catch (error) {
       console.error('Failed to load products:', error);
+      const message = error instanceof Error ? error.message : 'Failed to load products';
+      showFeedback(message, true);
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +157,7 @@ export default function ProductsScreen() {
 
   const handleSaveProduct = async () => {
     if (!productName || !productPrice || !accessToken) {
-      Alert.alert('Error', 'Product name and price are required');
+      showFeedback('Product name and price are required', true);
       return;
     }
 
@@ -172,16 +181,18 @@ export default function ProductsScreen() {
     try {
       if (editingProduct) {
         await updateProduct(accessToken, editingProduct.id, productData);
-        Alert.alert('Success', 'Product updated successfully');
+        showFeedback('Product updated successfully');
       } else {
         await createProduct(accessToken, productData);
-        Alert.alert('Success', 'Product created successfully');
+        showFeedback('Product created successfully');
       }
       setShowProductModal(false);
       resetProductForm();
-      loadProducts();
+      await loadProducts();
+      showFeedback('Product list refreshed');
     } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to save product');
+      const message = error instanceof Error ? error.message : 'Failed to save product';
+      showFeedback(message, true);
     } finally {
       setIsLoading(false);
     }
@@ -201,10 +212,11 @@ export default function ProductsScreen() {
             setIsLoading(true);
             try {
               await deleteProduct(accessToken, product.id);
-              Alert.alert('Success', 'Product deleted');
+              showFeedback('Product deleted');
               loadProducts();
             } catch (error) {
-              Alert.alert('Error', error instanceof Error ? error.message : 'Failed to delete');
+              const message = error instanceof Error ? error.message : 'Failed to delete';
+              showFeedback(message, true);
             } finally {
               setIsLoading(false);
             }

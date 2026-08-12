@@ -233,7 +233,7 @@ export const getCurrentUser = async (accessToken: string): Promise<User> => {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
+      'Authorization': `Bearer ${accessToken}`,
     },
   });
 
@@ -253,7 +253,7 @@ export const updateProfile = async (
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
+      'Authorization': `Bearer ${accessToken}`,
     },
     body: JSON.stringify(data),
   });
@@ -275,7 +275,7 @@ export const updateBrandProfile = async (
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
+      'Authorization': `Bearer ${accessToken}`,
     },
     body: JSON.stringify(data),
   });
@@ -297,7 +297,7 @@ export const changePassword = async (
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
+      'Authorization': `Bearer ${accessToken}`,
     },
     body: JSON.stringify(data),
   });
@@ -317,7 +317,7 @@ export const logout = async (accessToken: string): Promise<void> => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
       },
     });
   } catch (error) {
