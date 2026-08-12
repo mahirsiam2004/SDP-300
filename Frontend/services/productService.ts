@@ -3,9 +3,8 @@
 //export const API_BASE_URL = 'http://192.168.0.98:8000/api'; 
 //export const API_BASE_URL = 'http://10.165.178.202:8000/api'; 
 //export const API_BASE_URL = 'http://192.168.68.62:8000/api';
-const PROXY_BASE_URL = 'https://django-ngrok-proxy.onrender.com';
-const NORMALIZED_PROXY_BASE_URL = PROXY_BASE_URL.replace(/\/proxy\/?$/, '').replace(/\/+$/, '');
-export const API_BASE_URL = `${NORMALIZED_PROXY_BASE_URL}/proxy`;
+const PROXY_BASE_URL = 'http://localhost:8000/api';
+export const API_BASE_URL = PROXY_BASE_URL;
 
 const apiFetch = (input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> => {
   const headers = new Headers(init.headers);
