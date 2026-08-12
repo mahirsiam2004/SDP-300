@@ -268,6 +268,14 @@ SSL_STORE_ID = os.environ.get('SSL_STORE_ID', '')
 SSL_STORE_PASSWORD = os.environ.get('SSL_STORE_PASSWORD', '')
 SSL_IS_SANDBOX = os.environ.get('SSL_IS_SANDBOX', 'true').lower() == 'true'
 SSL_PAYMENT_VERIFY_ENABLED = os.environ.get('SSL_PAYMENT_VERIFY_ENABLED', 'true').lower() == 'true'
+# Local mock-payment fallback: when the SSLCommerz gateway cannot be reached or
+# returns no GatewayPageURL (e.g. de-activated sandbox store, or localhost dev where
+# SSLCommerz callbacks can never reach a private IP), complete the payment locally so
+# checkout is demonstrable. Disabled automatically outside DEBUG unless explicitly set.
+MOCK_PAYMENT_ENABLED = os.environ.get('MOCK_PAYMENT_ENABLED', 'true' if DEBUG else 'false').lower() == 'true'
+# Base URL of the BACKEND API server used to build the local mock-payment callback.
+# The mock success endpoint lives on the Django server (port 8000), not the app.
+MOCK_PAYMENT_BASE_URL = os.environ.get('MOCK_PAYMENT_BASE_URL', 'http://localhost:8000')
 SSL_INIT_URL = os.environ.get(
     'SSL_INIT_URL',
     'https://sandbox.sslcommerz.com/gwprocess/v4/api.php' if SSL_IS_SANDBOX else 'https://securepay.sslcommerz.com/gwprocess/v4/api.php',

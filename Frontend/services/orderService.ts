@@ -85,6 +85,8 @@ export interface GuestCheckoutData {
 export interface PaymentInitResponse {
   payment_required: boolean;
   payment_url: string;
+  is_mock?: boolean;
+  gateway_note?: string;
   transaction_id: string;
   order: Order;
 }

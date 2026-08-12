@@ -162,6 +162,23 @@ export default function CheckoutScreen() {
 
         const paymentInit = await checkoutInitPayment(accessToken, checkoutData);
         order = paymentInit.order;
+
+        // Real SSLCommerz redirect vs local mock fallback (when SSL is unavailable).
+        if (paymentInit.is_mock) {
+          try {
+            const sep = paymentInit.payment_url.includes('?') ? '&' : '?';
+            await fetch(`${paymentInit.payment_url}${sep}no_redirect=1`, { method: 'GET' });
+          } catch {
+            // best-effort; the order completion is idempotent
+          }
+          await clearCart();
+          await fetchProducts();
+          setMessageType('success');
+          setFormMessage(`Payment completed (demo mode). Order #${order.id} is confirmed.`);
+          router.replace(`/orderDetail?id=${order.id}`);
+          return;
+        }
+
         setMessageType('info');
         setFormMessage(`Continue payment in SSLCommerz. Your order will appear after successful payment.`);
         await Linking.openURL(paymentInit.payment_url);

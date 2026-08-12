@@ -85,6 +85,7 @@ urlpatterns = [
     path('payment/ssl/fail/', views.ssl_payment_fail_view, name='ssl_payment_fail'),
     path('payment/ssl/cancel/', views.ssl_payment_cancel_view, name='ssl_payment_cancel'),
     path('payment/ssl/ipn/', views.ssl_payment_ipn_view, name='ssl_payment_ipn'),
+    path('payment/mock/success/', views.mock_payment_success_view, name='mock_payment_success'),
     path('orders/', views.order_list_view, name='order_list'),
     path('orders/<int:order_id>/', views.order_detail_view, name='order_detail'),
     path('orders/guest/<int:order_id>/', views.guest_order_detail_view, name='guest_order_detail'),

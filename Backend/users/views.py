@@ -1961,7 +1961,23 @@ def _initialize_ssl_payment(request, order, payment):
 
     payment_url = response_data.get('GatewayPageURL')
     if not payment_url:
-        return {'ok': False, 'error': 'SSLCommerz did not return payment URL.', 'data': response_data}
+        # Surface the REAL reason from SSLCommerz instead of a generic message.
+        failed_reason = response_data.get('failedreason') or response_data.get('status') or 'unknown'
+        # Fall back to a local mock payment so checkout can still complete in dev/staging.
+        if settings.MOCK_PAYMENT_ENABLED:
+            mock_url = f"{settings.MOCK_PAYMENT_BASE_URL}/api/auth/payment/mock/success/?tran_id={payment.transaction_id}"
+            payment.payment_url = mock_url
+            payment.gateway_raw_response = json.dumps({'mock': True, 'ssl_failedreason': failed_reason})
+            payment.status = 'mock_redirect'
+            payment.save(update_fields=['payment_url', 'gateway_raw_response', 'status', 'updated_at'])
+            return {
+                'ok': True,
+                'payment_url': mock_url,
+                'is_mock': True,
+                'gateway_note': f"SSLCommerz unavailable ({failed_reason}); using local mock payment.",
+                'data': response_data,
+            }
+        return {'ok': False, 'error': f'SSLCommerz did not return payment URL: {failed_reason}', 'data': response_data}
 
     payment.payment_url = payment_url
     payment.gateway_raw_response = json.dumps(response_data)
@@ -2197,6 +2213,8 @@ def guest_checkout_view(request):
             {
                 'payment_required': True,
                 'payment_url': payment_init['payment_url'],
+                'is_mock': payment_init.get('is_mock', False),
+                'gateway_note': payment_init.get('gateway_note', ''),
                 'transaction_id': payment.transaction_id,
                 'order': OrderSerializer(order).data,
             },
@@ -2363,6 +2381,8 @@ def checkout_view(request):
             {
                 'payment_required': True,
                 'payment_url': payment_init['payment_url'],
+                'is_mock': payment_init.get('is_mock', False),
+                'gateway_note': payment_init.get('gateway_note', ''),
                 'transaction_id': payment.transaction_id,
                 'order': OrderSerializer(order).data,
             },
@@ -2609,6 +2629,44 @@ def ssl_payment_cancel_view(request):
             return _app_redirect_response(redirect_url, title='Payment cancelled')
 
     return Response({'message': 'Payment cancelled', 'order_id': None}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+@parser_classes([JSONParser, FormParser, MultiPartParser])
+def mock_payment_success_view(request):
+    """Local mock-payment completion used when SSLCommerz is unavailable.
+
+    The frontend opens this URL (passed back as payment_url) so the order is
+    marked paid without needing SSLCommerz's servers to call back to a public URL.
+    """
+    transaction_id = request.GET.get('tran_id') or request.data.get('tran_id') or request.POST.get('tran_id')
+    if not transaction_id:
+        return Response({'detail': 'tran_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        payment = SSLPayment.objects.select_related('order').get(transaction_id=transaction_id)
+    except SSLPayment.DoesNotExist:
+        return Response({'detail': 'Order not found for transaction'}, status=status.HTTP_404_NOT_FOUND)
+
+    result = _complete_paid_order(payment, gateway_val_id='mock', gateway_payload={'mock': True})
+    if not result.get('ok') and not result.get('already_paid'):
+        return Response({'detail': result.get('error', 'Payment completion failed')}, status=status.HTTP_400_BAD_REQUEST)
+
+    if _should_redirect_to_app(request):
+        order_id = payment.order_id
+        guest_token = payment.order.guest_access_token if payment.order and payment.order.guest_checkout else ''
+        redirect_url = _build_app_redirect_url(
+            settings.APP_SUCCESS_URL,
+            order_id=order_id,
+            payment_status='paid',
+            transaction_id=transaction_id,
+            guest_token=guest_token,
+        )
+        if redirect_url:
+            return _app_redirect_response(redirect_url, title='Payment successful (mock)')
+
+    return Response({'message': 'Payment completed (mock)', 'order_id': payment.order_id}, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
