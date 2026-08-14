@@ -1,0 +1,7 @@
+Django==5.0.14
+PyMySQL==1.1.1
+djangorestframework==3.15.2
+numpy==1.26.4
+pandas==2.2.3
+psycopg2-binary==2.9.10
+matplotlib==3.10.1

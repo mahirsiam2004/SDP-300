@@ -98,6 +98,7 @@ urlpatterns = [
 
     # AI URL endpoint proxy
     path('get-ai-url/', views.get_ai_url, name='get_ai_url'),
+    path('predict/demand/', views.predict_demand_view, name='predict_demand'),
     # Health check
     path('health/', views.health, name='health'),
 ]
