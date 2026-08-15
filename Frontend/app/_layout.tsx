@@ -47,10 +47,10 @@ function RootLayoutNav() {
         <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
           {!isSignedIn ? (
             <>
-              <Stack.Screen name="login/index" />
-              <Stack.Screen name="register/index" />
-              <Stack.Screen name="verify-email/index" />
-              <Stack.Screen name="forgot-password/index" />
+              <Stack.Screen name="login" />
+              <Stack.Screen name="register" />
+              <Stack.Screen name="verify-email" />
+              <Stack.Screen name="forgot-password" />
             </>
           ) : (
             <>
