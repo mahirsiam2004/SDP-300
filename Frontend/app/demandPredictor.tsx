@@ -66,7 +66,11 @@ interface PredictionResponse {
 //console.log('API_BASE_URL at runtime:', API_BASE_URL);
 //const BACKEND_URL = `${API_BASE_URL.replace(/\/api\/?$/, '')}/get-ai-url/`;
 const BACKEND_URL = API_BASE_URL + '/auth/get-ai-url/';
-//console.log('BACKEND_URL at runtime:', BACKEND_URL);
+// Predictor server runs on the dev machine. On a physical device, "localhost"
+// in the URL returned by the backend means the phone itself, so allow an
+// explicit override via EXPO_PUBLIC_AI_PREDICTION_URL (e.g.
+// http://192.168.0.108:8001/api/weekly-prediction/).
+const AI_PREDICTION_URL_OVERRIDE = process.env.EXPO_PUBLIC_AI_PREDICTION_URL;
 
 
 async function fetchWeeklyPrediction(predictionUrl: string, productIds: number[]): Promise<PredictionResponse> {
@@ -346,6 +350,10 @@ export default function WeeklyPredictionScreen() {
   // Prediction URL state and fetch
   const [PREDICTION_URL, setPredictionUrl] = useState<string | null>(null);
   useEffect(() => {
+    if (AI_PREDICTION_URL_OVERRIDE) {
+      setPredictionUrl(AI_PREDICTION_URL_OVERRIDE);
+      return;
+    }
     fetch(BACKEND_URL)
       .then(res => res.json())
       .then(data => setPredictionUrl(data.ai_url))

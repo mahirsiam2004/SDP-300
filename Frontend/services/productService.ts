@@ -1,10 +1,36 @@
 ﻿// Product Service for Brand CRUD operations
-//export const API_BASE_URL = 'https://shopflare-api-di4o.onrender.com/api';
-//export const API_BASE_URL = 'http://192.168.0.98:8000/api'; 
-//export const API_BASE_URL = 'http://10.165.178.202:8000/api'; 
-//export const API_BASE_URL = 'http://192.168.68.62:8000/api';
-const PROXY_BASE_URL = 'http://localhost:8000/api';
-export const API_BASE_URL = PROXY_BASE_URL;
+//
+// API base URL resolution:
+//  - Web (browser on the dev machine): http://localhost:8000/api
+//  - Physical device (Expo Go): auto-detect the dev machine's LAN IP so the
+//    phone can reach the backend (localhost on a phone means the phone itself,
+//    which is why "Network request failed" happened before).
+//  - Override anytime with EXPO_PUBLIC_API_URL in the Frontend/.env file.
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
+function resolveApiBaseUrl(): string {
+  // 1. Explicit override wins.
+  const override = process.env.EXPO_PUBLIC_API_URL;
+  if (override) return override.replace(/\/$/, '');
+
+  // 2. On a physical device, point at the dev machine's LAN IP.
+  if (Platform.OS !== 'web') {
+    const hostUri =
+      (Constants.expoConfig as any)?.hostUri ||
+      (Constants.manifest as any)?.debuggerHost ||
+      '';
+    const host = (hostUri || '').split(':')[0];
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      return `http://${host}:8000/api`;
+    }
+  }
+
+  // 3. Web / fallback.
+  return 'http://localhost:8000/api';
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 const apiFetch = async (input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> => {
   const headers = new Headers(init.headers);

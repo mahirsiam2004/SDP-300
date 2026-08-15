@@ -1043,7 +1043,7 @@ def cart_remove_view(request, item_id):
         return Response({'detail': 'Cart item not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
-@api_view(['DELETE'])
+@api_view(['DELETE', 'POST'])
 @permission_classes([IsAuthenticated])
 def cart_clear_view(request):
     """Clear entire cart"""

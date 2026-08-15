@@ -21,6 +21,17 @@ import {
 import { formatTk } from '@/utils/currency';
 import { calculateShippingCharge } from '@/utils/shipping';
 
+// Open an external payment URL. On web we navigate the browser tab directly;
+// on a native device (Expo Go / dev build) window.location.href is not
+// available, so we use Linking.openURL which is the correct native API.
+async function openPaymentUrl(url: string): Promise<void> {
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
+    window.location.href = url;
+  } else {
+    await Linking.openURL(url);
+  }
+}
+
 export default function CheckoutScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -181,12 +192,7 @@ export default function CheckoutScreen() {
 
         setMessageType('info');
         setFormMessage(`Continue payment in SSLCommerz. Your order will appear after successful payment.`);
-        // On web, Linking.openURL can be blocked/silent — navigate the tab directly.
-        if (typeof window !== 'undefined' && window.location) {
-          window.location.href = paymentInit.payment_url;
-        } else {
-          await Linking.openURL(paymentInit.payment_url);
-        }
+        await openPaymentUrl(paymentInit.payment_url);
         return;
       } else {
         const guestData: GuestCheckoutData = {
@@ -232,11 +238,7 @@ export default function CheckoutScreen() {
           order = paymentInit.order;
           setMessageType('info');
           setFormMessage(`Continue payment in SSLCommerz. Your order will appear after successful payment.`);
-          if (typeof window !== 'undefined' && window.location) {
-            window.location.href = paymentInit.payment_url;
-          } else {
-            await Linking.openURL(paymentInit.payment_url);
-          }
+          await openPaymentUrl(paymentInit.payment_url);
           return;
         }
       }
