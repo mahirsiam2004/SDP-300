@@ -116,12 +116,14 @@ def _send_verification_email(recipient_email, code):
         f"Your ShopFlare verification code is {code}.\n\n"
         f"It expires in {VERIFICATION_CODE_EXPIRY_MINUTES} minutes."
     )
+    # fail_silently: dev environments usually have no SMTP configured; never
+    # let a missing mail server crash the auth/verification flow.
     send_mail(
         subject,
         message,
         getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shopflare.com'),
         [recipient_email],
-        fail_silently=False,
+        fail_silently=True,
     )
 
 
@@ -136,7 +138,7 @@ def _send_account_created_email(recipient_email):
         message,
         getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shopflare.com'),
         [recipient_email],
-        fail_silently=False,
+        fail_silently=True,
     )
 
 
@@ -189,12 +191,13 @@ def _send_password_reset_email(recipient_email, code):
         f"Your ShopFlare password reset code is {code}.\n\n"
         f"It expires in {PASSWORD_RESET_CODE_EXPIRY_MINUTES} minutes."
     )
+    # fail_silently: dev environments usually have no SMTP configured.
     send_mail(
         subject,
         message,
         getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shopflare.com'),
         [recipient_email],
-        fail_silently=False,
+        fail_silently=True,
     )
 
 
